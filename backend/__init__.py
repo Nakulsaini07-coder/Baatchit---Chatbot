@@ -1,4 +1,4 @@
-from backend import (
+from .app import (
     chatbot,
     ingest_pdf,
     retrieve_all_threads,
