@@ -25,7 +25,7 @@ def run_app():
     thread_key, thread_docs, threads = ensure_session_state(retrieve_all_threads)
     selected_thread = None
 
-    st.sidebar.title("Baatcheet")
+    st.sidebar.title("Baatchit")
 
     if st.sidebar.button("New Chat"):
         reset_chat()
@@ -62,7 +62,7 @@ def run_app():
         if st.sidebar.button(label, key=f"side-thread-{thread_id}"):
             selected_thread = thread_id
 
-    st.title("Baatcheet")
+    st.title("Baatchit")
 
     for message in st.session_state["message_history"]:
         with st.chat_message(message["role"]):
