@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from typing import Annotated, TypedDict
 
-from langchain_core.messages import BaseMessage, SystemMessage
+from langchain_core.messages import BaseMessage, SystemMessage, AIMessage
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode, tools_condition
+from .semantic_cache import query_cache, add_to_cache
 
 
 class ChatState(TypedDict):
@@ -30,7 +31,37 @@ def make_chat_node(llm_with_tools):
         )
 
         messages = [system_message, *state["messages"]]
+
+        # Try semantic cache using the last user message as the query fingerprint.
+        query_text = ""
+        if state.get("messages"):
+            # find last user message if available
+            for m in reversed(state["messages"]):
+                role = getattr(m, "role", None)
+                if role == "user":
+                    query_text = getattr(m, "content", "")
+                    break
+            if not query_text:
+                # fallback to last message content
+                last = state["messages"][-1]
+                query_text = getattr(last, "content", "")
+
+        if query_text:
+            cached_resp, sim = query_cache(query_text)
+            if cached_resp:
+                ai_msg = AIMessage(content=cached_resp)
+                return {"messages": [ai_msg]}
+
         response = await llm_with_tools.ainvoke(messages)
+
+        # Add to semantic cache asynchronously (best-effort).
+        try:
+            # store using the last user query as key if available
+            if query_text and getattr(response, "content", None):
+                add_to_cache(query_text, getattr(response, "content"))
+        except Exception:
+            pass
+
         return {"messages": [response]}
 
     return chat_node
